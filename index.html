@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>РНП — Britva & Soda</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #fff; color: #1f2937; padding: 16px 24px; }
+
+.header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.header h1 { font-size: 24px; font-weight: 700; }
+.header .tab { font-size: 14px; font-weight: 500; color: #6366f1; }
+.header .sync { font-size: 12px; color: #b0b7c3; }
+
+.chips { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.chip { padding: 5px 14px; border-radius: 14px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; background: #f9fafb; color: #6b7280; cursor: pointer; }
+.chip.active { background: #1f2937; color: #fff; border-color: #1f2937; }
+
+.kpi-strip { display: flex; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+.kpi-cell { flex: 1; padding: 10px 14px; text-align: center; border-right: 1px solid #e5e7eb; }
+.kpi-cell:last-child { border-right: none; }
+.kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #9ca3af; margin-bottom: 2px; }
+.kpi-value { font-size: 20px; font-weight: 700; color: #1f2937; line-height: 1.3; }
+.kpi-sub { font-size: 11px; color: #b0b7c3; margin-top: 1px; }
+.kpi-accent { height: 3px; border-radius: 0 0 2px 2px; margin-top: 6px; }
+.kpi-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 9px; margin-left: 4px; vertical-align: super; color: #fff; }
+
+.chart-wrap { margin-bottom: 14px; }
+canvas { width: 100% !important; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: right; padding: 6px 10px; font-weight: 600; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.3px; }
+th:first-child { text-align: left; }
+td { text-align: right; padding: 5px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+td:first-child { text-align: left; font-weight: 500; color: #6b7280; }
+tr:hover { background: #f9fafb; }
+.total-row td { font-weight: 700; border-top: 1px solid #e5e7eb; border-bottom: none; color: #1f2937; }
+.weekend { font-weight: 600; color: #374151; }
+.positive { color: #16a34a; font-weight: 600; }
+.negative { color: #dc2626; font-weight: 600; }
+
+.sep { border-top: 1px solid #f3f4f6; margin: 12px 0; }
+.footer { text-align: center; color: #d1d5db; font-size: 11px; margin-top: 20px; padding-bottom: 10px; }
+
+.table-scroll { max-height: 380px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>РНП</h1>
+    <span class="tab">Выручка</span>
+    <span class="sync">синхр. 29.05.2026 20:03 ↻</span>
+</div>
+
+<div class="chips" id="chips"></div>
+<div class="kpi-strip" id="kpi"></div>
+<div class="chart-wrap"><canvas id="chart" height="180"></canvas></div>
+<div class="sep"></div>
+<div class="table-scroll" id="detail-table"></div>
+<div class="sep"></div>
+<div id="comparison-table"></div>
+<div class="footer">YClients API · 29.05.2026 20:03 · данные актуальны на момент генерации</div>
+
+<script>
+const BRANCHES = {"164190": {"name": "Britva Люблино", "short": "Br Люб", "color": "#93AAFD"}, "604775": {"name": "Britva ЛП", "short": "Br ЛП", "color": "#B4A0E8"}, "820674": {"name": "Soda Профсоюзная", "short": "S Проф", "color": "#F09898"}, "842128": {"name": "Soda Скобелевская", "short": "S Скоб", "color": "#FDBE87"}};
+const DATA = {"164190": {"2026-05-29": {"revenue": 84510, "visits": 37}, "2026-05-28": {"revenue": 82410, "visits": 35}, "2026-05-27": {"revenue": 53620, "visits": 25}, "2026-05-26": {"revenue": 47780, "visits": 21}, "2026-05-25": {"revenue": 50270.0, "visits": 23}, "2026-05-24": {"revenue": 117990, "visits": 56}, "2026-05-23": {"revenue": 128440, "visits": 57}, "2026-05-22": {"revenue": 130060.0, "visits": 55}, "2026-05-21": {"revenue": 143040.0, "visits": 60}, "2026-05-20": {"revenue": 92440.0, "visits": 48}, "2026-05-19": {"revenue": 96630, "visits": 43}, "2026-05-18": {"revenue": 72040, "visits": 33}, "2026-05-17": {"revenue": 129540.0, "visits": 60}, "2026-05-16": {"revenue": 113060, "visits": 48}, "2026-05-15": {"revenue": 138130.0, "visits": 56}, "2026-05-14": {"revenue": 131260.0, "visits": 50}, "2026-05-13": {"revenue": 86600.0, "visits": 40}, "2026-05-12": {"revenue": 53630, "visits": 24}, "2026-05-11": {"revenue": 76310, "visits": 36}, "2026-05-10": {"revenue": 95470, "visits": 38}, "2026-05-09": {"revenue": 109990.0, "visits": 46}, "2026-05-08": {"revenue": 108860.0, "visits": 53}, "2026-05-07": {"revenue": 137260, "visits": 58}, "2026-05-06": {"revenue": 107275, "visits": 44}, "2026-05-05": {"revenue": 100300.0, "visits": 46}, "2026-05-04": {"revenue": 56880, "visits": 25}, "2026-05-03": {"revenue": 132710, "visits": 54}, "2026-05-02": {"revenue": 92670.0, "visits": 39}, "2026-05-01": {"revenue": 111320, "visits": 49}, "2026-04-30": {"revenue": 86650, "visits": 39}, "2026-04-29": {"revenue": 64020, "visits": 28}, "2026-04-28": {"revenue": 53270, "visits": 24}, "2026-04-27": {"revenue": 33520.0, "visits": 14}, "2026-04-26": {"revenue": 124200.0, "visits": 53}, "2026-04-25": {"revenue": 126540.0, "visits": 57}, "2026-04-24": {"revenue": 120950.0, "visits": 54}, "2026-04-23": {"revenue": 79650, "visits": 31}, "2026-04-22": {"revenue": 81750, "visits": 42}, "2026-04-21": {"revenue": 73830, "visits": 36}, "2026-04-20": {"revenue": 47250, "visits": 22}, "2026-04-19": {"revenue": 147860, "visits": 61}, "2026-04-18": {"revenue": 139420.0, "visits": 60}, "2026-04-17": {"revenue": 103850.0, "visits": 44}, "2026-04-16": {"revenue": 136710, "visits": 53}, "2026-04-15": {"revenue": 73170.0, "visits": 33}, "2026-04-14": {"revenue": 77700.0, "visits": 29}, "2026-04-13": {"revenue": 41490, "visits": 19}, "2026-04-12": {"revenue": 121970.0, "visits": 48}, "2026-04-11": {"revenue": 134910.0, "visits": 55}, "2026-04-10": {"revenue": 79950, "visits": 39}, "2026-04-09": {"revenue": 116870.0, "visits": 45}, "2026-04-08": {"revenue": 72900.0, "visits": 32}, "2026-04-07": {"revenue": 44090, "visits": 21}, "2026-04-06": {"revenue": 69440, "visits": 33}, "2026-04-05": {"revenue": 107590.0, "visits": 48}, "2026-04-04": {"revenue": 116710.0, "visits": 50}, "2026-04-03": {"revenue": 89590, "visits": 37}, "2026-04-02": {"revenue": 71220.0, "visits": 33}, "2026-04-01": {"revenue": 89450.0, "visits": 45}, "2026-03-31": {"revenue": 85320.0, "visits": 41}, "2026-03-30": {"revenue": 58850, "visits": 24}, "2026-03-29": {"revenue": 142600.0, "visits": 59}, "2026-03-28": {"revenue": 113710.0, "visits": 56}, "2026-03-27": {"revenue": 94830.0, "visits": 47}, "2026-03-26": {"revenue": 110360, "visits": 47}, "2026-03-25": {"revenue": 89330, "visits": 40}}, "604775": {"2026-05-29": {"revenue": 13320, "visits": 6}, "2026-05-28": {"revenue": 11750, "visits": 7}, "2026-05-27": {"revenue": 23170, "visits": 13}, "2026-05-26": {"revenue": 10440, "visits": 7}, "2026-05-25": {"revenue": 25116, "visits": 13}, "2026-05-24": {"revenue": 42952, "visits": 21}, "2026-05-23": {"revenue": 37870, "visits": 20}, "2026-05-22": {"revenue": 21272, "visits": 9}, "2026-05-21": {"revenue": 29560, "visits": 14}, "2026-05-20": {"revenue": 30445.0, "visits": 15}, "2026-05-19": {"revenue": 16700, "visits": 9}, "2026-05-18": {"revenue": 26860, "visits": 13}, "2026-05-17": {"revenue": 45410, "visits": 24}, "2026-05-16": {"revenue": 16000, "visits": 16}, "2026-05-15": {"revenue": 31590, "visits": 17}, "2026-05-14": {"revenue": 37960.0, "visits": 17}, "2026-05-13": {"revenue": 16800, "visits": 8}, "2026-05-12": {"revenue": 15310, "visits": 7}, "2026-05-11": {"revenue": 22670, "visits": 13}, "2026-05-10": {"revenue": 14665, "visits": 8}, "2026-05-09": {"revenue": 27010, "visits": 14}, "2026-05-08": {"revenue": 9030.0, "visits": 6}, "2026-05-07": {"revenue": 46620, "visits": 24}, "2026-05-06": {"revenue": 42106.0, "visits": 23}, "2026-05-05": {"revenue": 36740, "visits": 18}, "2026-05-04": {"revenue": 35470, "visits": 22}, "2026-05-03": {"revenue": 32810, "visits": 16}, "2026-05-02": {"revenue": 27410, "visits": 15}, "2026-05-01": {"revenue": 19278.0, "visits": 11}, "2026-04-30": {"revenue": 21470, "visits": 11}, "2026-04-29": {"revenue": 17300, "visits": 9}, "2026-04-28": {"revenue": 12330, "visits": 7}, "2026-04-27": {"revenue": 16271, "visits": 7}, "2026-04-26": {"revenue": 39962, "visits": 20}, "2026-04-25": {"revenue": 32030, "visits": 16}, "2026-04-24": {"revenue": 16200, "visits": 8}, "2026-04-23": {"revenue": 11140, "visits": 6}, "2026-04-22": {"revenue": 15890.0, "visits": 10}, "2026-04-21": {"revenue": 12720, "visits": 8}, "2026-04-20": {"revenue": 24351, "visits": 12}, "2026-04-19": {"revenue": 41060, "visits": 19}, "2026-04-18": {"revenue": 40277.0, "visits": 20}, "2026-04-17": {"revenue": 16920, "visits": 7}, "2026-04-16": {"revenue": 25360, "visits": 13}, "2026-04-15": {"revenue": 24830.0, "visits": 11}, "2026-04-14": {"revenue": 4470, "visits": 3}, "2026-04-13": {"revenue": 28040, "visits": 14}, "2026-04-12": {"revenue": 40710, "visits": 22}, "2026-04-11": {"revenue": 43510, "visits": 22}, "2026-04-10": {"revenue": 16210, "visits": 7}, "2026-04-09": {"revenue": 22630, "visits": 13}, "2026-04-08": {"revenue": 13720, "visits": 8}, "2026-04-07": {"revenue": 15510, "visits": 7}, "2026-04-06": {"revenue": 18590, "visits": 11}, "2026-04-05": {"revenue": 37480, "visits": 20}, "2026-04-04": {"revenue": 24460, "visits": 11}, "2026-04-03": {"revenue": 19870, "visits": 9}, "2026-04-02": {"revenue": 17090, "visits": 10}, "2026-04-01": {"revenue": 24880, "visits": 12}, "2026-03-31": {"revenue": 14310, "visits": 8}, "2026-03-30": {"revenue": 21740, "visits": 11}, "2026-03-29": {"revenue": 25160, "visits": 12}, "2026-03-28": {"revenue": 28940, "visits": 16}, "2026-03-27": {"revenue": 20790, "visits": 10}, "2026-03-26": {"revenue": 10830, "visits": 6}, "2026-03-25": {"revenue": 23060, "visits": 11}}, "820674": {"2026-05-29": {"revenue": 118220, "visits": 31}, "2026-05-28": {"revenue": 87875.0, "visits": 31}, "2026-05-27": {"revenue": 89775, "visits": 27}, "2026-05-26": {"revenue": 126600, "visits": 42}, "2026-05-25": {"revenue": 126220, "visits": 46}, "2026-05-24": {"revenue": 96195.0, "visits": 33}, "2026-05-23": {"revenue": 129400, "visits": 39}, "2026-05-22": {"revenue": 102840, "visits": 33}, "2026-05-21": {"revenue": 141160, "visits": 36}, "2026-05-20": {"revenue": 110245.0, "visits": 34}, "2026-05-19": {"revenue": 98935, "visits": 33}, "2026-05-18": {"revenue": 97870, "visits": 35}, "2026-05-17": {"revenue": 157110, "visits": 40}, "2026-05-16": {"revenue": 124930, "visits": 37}, "2026-05-15": {"revenue": 115390, "visits": 37}, "2026-05-14": {"revenue": 89875, "visits": 28}, "2026-05-13": {"revenue": 68530, "visits": 22}, "2026-05-12": {"revenue": 98405.0, "visits": 29}, "2026-05-11": {"revenue": 137490, "visits": 43}, "2026-05-10": {"revenue": 106180, "visits": 34}, "2026-05-09": {"revenue": 56755, "visits": 21}, "2026-05-08": {"revenue": 118390, "visits": 36}, "2026-05-07": {"revenue": 89795, "visits": 41}, "2026-05-06": {"revenue": 72360, "visits": 29}, "2026-05-05": {"revenue": 95985, "visits": 31}, "2026-05-04": {"revenue": 119000, "visits": 31}, "2026-05-03": {"revenue": 103240, "visits": 30}, "2026-05-02": {"revenue": 116685, "visits": 34}, "2026-05-01": {"revenue": 105920, "visits": 38}, "2026-04-30": {"revenue": 109570, "visits": 33}, "2026-04-29": {"revenue": 103650, "visits": 29}, "2026-04-28": {"revenue": 114620, "visits": 37}, "2026-04-27": {"revenue": 63110, "visits": 22}, "2026-04-26": {"revenue": 107100, "visits": 32}, "2026-04-25": {"revenue": 103675, "visits": 33}, "2026-04-24": {"revenue": 126605, "visits": 41}, "2026-04-23": {"revenue": 111330, "visits": 35}, "2026-04-22": {"revenue": 106650, "visits": 34}, "2026-04-21": {"revenue": 87630, "visits": 37}, "2026-04-20": {"revenue": 61905, "visits": 26}, "2026-04-19": {"revenue": 120085, "visits": 42}, "2026-04-18": {"revenue": 92885, "visits": 32}, "2026-04-17": {"revenue": 70580, "visits": 27}, "2026-04-16": {"revenue": 60160, "visits": 16}, "2026-04-15": {"revenue": 74795, "visits": 31}, "2026-04-14": {"revenue": 88340, "visits": 32}, "2026-04-13": {"revenue": 70025, "visits": 22}, "2026-04-12": {"revenue": 119850, "visits": 33}, "2026-04-11": {"revenue": 108200, "visits": 27}, "2026-04-10": {"revenue": 115710, "visits": 37}, "2026-04-09": {"revenue": 98605, "visits": 35}, "2026-04-08": {"revenue": 123485, "visits": 34}, "2026-04-07": {"revenue": 99605, "visits": 33}, "2026-04-06": {"revenue": 37775, "visits": 16}, "2026-04-05": {"revenue": 91540, "visits": 31}, "2026-04-04": {"revenue": 141246, "visits": 38}, "2026-04-03": {"revenue": 112405.0, "visits": 34}, "2026-04-02": {"revenue": 98570, "visits": 31}, "2026-04-01": {"revenue": 85705, "visits": 28}, "2026-03-31": {"revenue": 58380, "visits": 21}, "2026-03-30": {"revenue": 86545, "visits": 32}, "2026-03-29": {"revenue": 107030, "visits": 28}, "2026-03-28": {"revenue": 153135, "visits": 35}, "2026-03-27": {"revenue": 132050, "visits": 40}, "2026-03-26": {"revenue": 110195, "visits": 33}, "2026-03-25": {"revenue": 107515, "visits": 34}}, "842128": {"2026-05-29": {"revenue": 80375, "visits": 29}, "2026-05-28": {"revenue": 45720, "visits": 20}, "2026-05-27": {"revenue": 45405, "visits": 21}, "2026-05-26": {"revenue": 48840, "visits": 17}, "2026-05-25": {"revenue": 80585, "visits": 28}, "2026-05-24": {"revenue": 54120, "visits": 20}, "2026-05-23": {"revenue": 81405, "visits": 27}, "2026-05-22": {"revenue": 58615, "visits": 22}, "2026-05-21": {"revenue": 95290, "visits": 31}, "2026-05-20": {"revenue": 66550, "visits": 24}, "2026-05-19": {"revenue": 73050, "visits": 29}, "2026-05-18": {"revenue": 41050, "visits": 18}, "2026-05-17": {"revenue": 52565, "visits": 23}, "2026-05-16": {"revenue": 55730, "visits": 23}, "2026-05-15": {"revenue": 59520, "visits": 23}, "2026-05-14": {"revenue": 92820, "visits": 33}, "2026-05-13": {"revenue": 53350, "visits": 18}, "2026-05-12": {"revenue": 68660, "visits": 26}, "2026-05-11": {"revenue": 66775, "visits": 24}, "2026-05-10": {"revenue": 20825, "visits": 13}, "2026-05-09": {"revenue": 35300, "visits": 13}, "2026-05-08": {"revenue": 51220, "visits": 21}, "2026-05-07": {"revenue": 55060, "visits": 23}, "2026-05-06": {"revenue": 29420, "visits": 17}, "2026-05-05": {"revenue": 87620, "visits": 28}, "2026-05-04": {"revenue": 65660, "visits": 22}, "2026-05-03": {"revenue": 24000, "visits": 13}, "2026-05-02": {"revenue": 21700, "visits": 7}, "2026-05-01": {"revenue": 19100, "visits": 9}, "2026-04-30": {"revenue": 73105, "visits": 27}, "2026-04-29": {"revenue": 63580, "visits": 22}, "2026-04-28": {"revenue": 57130, "visits": 23}, "2026-04-27": {"revenue": 40520, "visits": 13}, "2026-04-26": {"revenue": 30060, "visits": 13}, "2026-04-25": {"revenue": 38020, "visits": 15}, "2026-04-24": {"revenue": 61200, "visits": 25}, "2026-04-23": {"revenue": 72060, "visits": 29}, "2026-04-22": {"revenue": 81135, "visits": 20}, "2026-04-21": {"revenue": 54505, "visits": 26}, "2026-04-20": {"revenue": 40745, "visits": 18}, "2026-04-19": {"revenue": 31200, "visits": 17}, "2026-04-18": {"revenue": 46570, "visits": 17}, "2026-04-17": {"revenue": 24360, "visits": 12}, "2026-04-16": {"revenue": 88605, "visits": 36}, "2026-04-15": {"revenue": 42100, "visits": 17}, "2026-04-14": {"revenue": 61235, "visits": 23}, "2026-04-13": {"revenue": 31660, "visits": 15}, "2026-04-12": {"revenue": 28000, "visits": 11}, "2026-04-11": {"revenue": 32115, "visits": 14}, "2026-04-10": {"revenue": 54325, "visits": 21}, "2026-04-09": {"revenue": 63300, "visits": 26}, "2026-04-08": {"revenue": 33460, "visits": 13}, "2026-04-07": {"revenue": 35380, "visits": 21}, "2026-04-06": {"revenue": 34980, "visits": 15}, "2026-04-05": {"revenue": 24910, "visits": 12}, "2026-04-04": {"revenue": 46300, "visits": 13}, "2026-04-03": {"revenue": 41590, "visits": 16}, "2026-04-02": {"revenue": 32680, "visits": 15}, "2026-04-01": {"revenue": 25490, "visits": 12}, "2026-03-31": {"revenue": 52000, "visits": 18}, "2026-03-30": {"revenue": 28770, "visits": 11}, "2026-03-29": {"revenue": 35805.0, "visits": 23}, "2026-03-28": {"revenue": 37900, "visits": 13}, "2026-03-27": {"revenue": 39560, "visits": 15}, "2026-03-26": {"revenue": 48120, "visits": 22}, "2026-03-25": {"revenue": 93440, "visits": 26}}};
+const TODAY = "2026-05-29";
+const YESTERDAY = "2026-05-28";
+const FIRST_THIS = "2026-05-01";
+const FIRST_PREV = "2026-04-01";
+const DAYS_IN_MONTH = 31;
+const DAY_OF_MONTH = 28;
+
+let selectedBranch = "all";
+let chart = null;
+
+function fmt(v) {
+    if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
+    if (v >= 1e3) return Math.round(v/1e3) + "K";
+    return v.toLocaleString("ru-RU");
+}
+function fmtR(v) { return fmt(v) + " ₽"; }
+
+function getDates(startStr, endStr) {
+    const dates = [];
+    let d = new Date(startStr);
+    const end = new Date(endStr);
+    while (d <= end) {
+        dates.push(d.toISOString().slice(0,10));
+        d.setDate(d.getDate() + 1);
+    }
+    return dates;
+}
+
+function branchIds() {
+    if (selectedBranch === "all") return Object.keys(BRANCHES);
+    return [selectedBranch];
+}
+
+function sumRange(start, end, filterDay) {
+    let rev = 0, vis = 0;
+    branchIds().forEach(cid => {
+        const bd = DATA[cid] || {};
+        Object.entries(bd).forEach(([d, v]) => {
+            if (d >= start && d <= end) {
+                if (filterDay && parseInt(d.slice(8,10)) > filterDay) return;
+                rev += v.revenue;
+                vis += v.visits;
+            }
+        });
+    });
+    return { rev, vis };
+}
+
+function sumRangeBranch(cid, start, end, filterDay) {
+    let rev = 0, vis = 0;
+    const bd = DATA[cid] || {};
+    Object.entries(bd).forEach(([d, v]) => {
+        if (d >= start && d <= end) {
+            if (filterDay && parseInt(d.slice(8,10)) > filterDay) return;
+            rev += v.revenue;
+            vis += v.visits;
+        }
+    });
+    return { rev, vis };
+}
+
+function renderChips() {
+    const el = document.getElementById("chips");
+    let html = '<span class="chip ' + (selectedBranch === "all" ? "active" : "") + '" onclick="selectBranch(\'all\')">Все</span>';
+    Object.entries(BRANCHES).forEach(([cid, info]) => {
+        html += '<span class="chip ' + (selectedBranch === cid ? "active" : "") + '" onclick="selectBranch(\'' + cid + '\')">' + info.name + '</span>';
+    });
+    el.innerHTML = html;
+}
+
+function renderKPI() {
+    const curr = sumRange(FIRST_THIS, YESTERDAY);
+    const prev = sumRange(FIRST_PREV, FIRST_THIS, DAY_OF_MONTH);
+    const forecast = DAY_OF_MONTH > 0 ? (curr.rev / DAY_OF_MONTH) * DAYS_IN_MONTH : 0;
+    const avgCheck = curr.vis > 0 ? curr.rev / curr.vis : 0;
+    const delta = prev.rev > 0 ? ((curr.rev / prev.rev) - 1) * 100 : 0;
+    const vpd = DAY_OF_MONTH > 0 ? Math.round(curr.vis / DAY_OF_MONTH) : 0;
+
+    const netCurr = (() => {
+        let r = 0, v = 0;
+        Object.keys(BRANCHES).forEach(cid => {
+            const bd = DATA[cid] || {};
+            Object.entries(bd).forEach(([d, val]) => {
+                if (d >= FIRST_THIS && d <= YESTERDAY) { r += val.revenue; v += val.visits; }
+            });
+        });
+        return { rev: r, vis: v };
+    })();
+
+    const dSign = delta >= 0 ? "+" : "";
+    const dBg = delta >= 0 ? "#86EFAC" : "#FCA5A5";
+    const dFg = delta >= 0 ? "#065f46" : "#991b1b";
+
+    document.getElementById("kpi").innerHTML = `
+        <div class="kpi-cell">
+            <div class="kpi-label">ВЫРУЧКА</div>
+            <div class="kpi-value">${fmtR(curr.rev)}</div>
+            <div class="kpi-sub">${DAY_OF_MONTH} из ${DAYS_IN_MONTH} дней</div>
+            <div class="kpi-accent" style="background:#93AAFD"></div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-label">ПРОГНОЗ</div>
+            <div class="kpi-value">${fmtR(forecast)}</div>
+            <div class="kpi-sub">на ${DAYS_IN_MONTH} дней</div>
+            <div class="kpi-accent" style="background:#93C5FD"></div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-label">ВИЗИТЫ</div>
+            <div class="kpi-value">${curr.vis.toLocaleString("ru-RU")} <span class="kpi-badge" style="background:#86EFAC;color:#065f46">${vpd}/д</span></div>
+            <div class="kpi-sub">с начала месяца</div>
+            <div class="kpi-accent" style="background:#86EFAC"></div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-label">СР.ЧЕК</div>
+            <div class="kpi-value">${Math.round(avgCheck).toLocaleString("ru-RU")} ₽</div>
+            <div class="kpi-sub">текущий месяц</div>
+            <div class="kpi-accent" style="background:#FDE68A"></div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-label">VS ПРОШЛЫЙ</div>
+            <div class="kpi-value">${dSign}${delta.toFixed(1)}% <span class="kpi-badge" style="background:${dBg};color:${dFg}">${fmtR(prev.rev)}</span></div>
+            <div class="kpi-sub">за ${DAY_OF_MONTH} дней</div>
+            <div class="kpi-accent" style="background:#C4B5FD"></div>
+        </div>
+        <div class="kpi-cell">
+            <div class="kpi-label">СЕТЬ</div>
+            <div class="kpi-value">${fmtR(netCurr.rev)}</div>
+            <div class="kpi-sub">${netCurr.vis.toLocaleString("ru-RU")} визитов</div>
+            <div class="kpi-accent" style="background:#F9A8D4"></div>
+        </div>
+    `;
+}
+
+function renderChart() {
+    const start60 = new Date(TODAY);
+    start60.setDate(start60.getDate() - 60);
+    const dates = getDates(start60.toISOString().slice(0,10), YESTERDAY);
+
+    const values = dates.map(d => {
+        let total = 0;
+        branchIds().forEach(cid => {
+            const bd = DATA[cid] || {};
+            if (bd[d]) total += bd[d].revenue;
+        });
+        return total;
+    });
+
+    const colors = dates.map(d => {
+        if (d >= FIRST_THIS) return "#93AAFD";
+        if (d >= FIRST_PREV) return "#C7D2FE";
+        return "#E0E7FF";
+    });
+
+    const labels = dates.map(d => parseInt(d.slice(8,10)));
+
+    const avg = values.filter(v => v > 0).reduce((a,b) => a+b, 0) / values.filter(v => v > 0).length || 0;
+
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                annotation: { annotations: { } },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => dates[items[0].dataIndex],
+                        label: (item) => item.raw.toLocaleString("ru-RU") + " ₽"
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10, family: "Inter" }, color: "#b0b7c3" } },
+                y: { grid: { color: "#f3f4f6" }, ticks: { font: { size: 10, family: "Inter" }, color: "#b0b7c3", callback: v => fmt(v) } }
+            }
+        },
+        plugins: [{
+            afterDraw(ch) {
+                const ctx = ch.ctx;
+                const yScale = ch.scales.y;
+                const xScale = ch.scales.x;
+                const y = yScale.getPixelForValue(avg);
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = "#CBD5E1";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(xScale.left, y);
+                ctx.lineTo(xScale.right, y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.font = "11px Inter";
+                ctx.fillStyle = "#94A3B8";
+                ctx.fillText("ср. " + fmtR(avg), xScale.left + 4, y - 4);
+                ctx.restore();
+            }
+        }]
+    });
+}
+
+function renderDetailTable() {
+    const dates = getDates(
+        new Date(new Date(TODAY).getTime() - 30*86400000).toISOString().slice(0,10),
+        YESTERDAY
+    ).reverse();
+
+    const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const isAll = selectedBranch === "all";
+
+    let html = "<table><thead><tr><th>Дата</th>";
+    if (isAll) {
+        Object.values(BRANCHES).forEach(b => { html += "<th>" + b.short + "</th>"; });
+        html += "<th>ИТОГО</th>";
+    } else {
+        html += "<th>Выручка, ₽</th><th>Визиты</th><th>Ср.чек, ₽</th>";
+    }
+    html += "</tr></thead><tbody>";
+
+    let totals = {};
+    if (isAll) {
+        Object.keys(BRANCHES).forEach(cid => { totals[cid] = 0; });
+        totals.total = 0;
+    } else {
+        totals = { rev: 0, vis: 0 };
+    }
+
+    dates.forEach(d => {
+        const dt = new Date(d + "T00:00:00");
+        const wd = weekdays[dt.getDay()];
+        const isWe = dt.getDay() === 0 || dt.getDay() === 6;
+        const cls = isWe ? ' class="weekend"' : '';
+
+        html += "<tr><td" + cls + ">" + d.slice(8,10) + "." + d.slice(5,7) + " " + wd + "</td>";
+
+        if (isAll) {
+            let rowTotal = 0;
+            Object.keys(BRANCHES).forEach(cid => {
+                const v = (DATA[cid] && DATA[cid][d]) ? DATA[cid][d].revenue : 0;
+                html += "<td>" + v.toLocaleString("ru-RU") + "</td>";
+                totals[cid] += v;
+                rowTotal += v;
+            });
+            html += '<td style="font-weight:600;color:#1f2937">' + rowTotal.toLocaleString("ru-RU") + "</td>";
+            totals.total += rowTotal;
+        } else {
+            const bd = DATA[selectedBranch] || {};
+            const dv = bd[d] || { revenue: 0, visits: 0 };
+            const ac = dv.visits > 0 ? Math.round(dv.revenue / dv.visits) : 0;
+            html += "<td>" + dv.revenue.toLocaleString("ru-RU") + "</td><td>" + dv.visits + "</td><td>" + ac.toLocaleString("ru-RU") + "</td>";
+            totals.rev += dv.revenue;
+            totals.vis += dv.visits;
+        }
+        html += "</tr>";
+    });
+
+    html += '<tr class="total-row"><td><b>ИТОГО</b></td>';
+    if (isAll) {
+        Object.keys(BRANCHES).forEach(cid => { html += "<td><b>" + totals[cid].toLocaleString("ru-RU") + "</b></td>"; });
+        html += "<td><b>" + totals.total.toLocaleString("ru-RU") + "</b></td>";
+    } else {
+        const tac = totals.vis > 0 ? Math.round(totals.rev / totals.vis) : 0;
+        html += "<td><b>" + totals.rev.toLocaleString("ru-RU") + "</b></td><td><b>" + totals.vis + "</b></td><td><b>" + tac.toLocaleString("ru-RU") + "</b></td>";
+    }
+    html += "</tr></tbody></table>";
+
+    document.getElementById("detail-table").innerHTML = html;
+}
+
+function renderComparison() {
+    if (selectedBranch !== "all") {
+        document.getElementById("comparison-table").innerHTML = "";
+        return;
+    }
+
+    let rows = [];
+    let tRev = 0, tFc = 0, tVis = 0, tPrev = 0;
+
+    Object.entries(BRANCHES).forEach(([cid, info]) => {
+        const curr = sumRangeBranch(cid, FIRST_THIS, YESTERDAY);
+        const prev = sumRangeBranch(cid, FIRST_PREV, FIRST_THIS, DAY_OF_MONTH);
+        const fc = DAY_OF_MONTH > 0 ? (curr.rev / DAY_OF_MONTH) * DAYS_IN_MONTH : 0;
+        const ac = curr.vis > 0 ? curr.rev / curr.vis : 0;
+        const delta = prev.rev > 0 ? ((curr.rev / prev.rev) - 1) * 100 : 0;
+
+        tRev += curr.rev; tFc += fc; tVis += curr.vis; tPrev += prev.rev;
+
+        const cls = delta >= 0 ? "positive" : "negative";
+        const sign = delta >= 0 ? "+" : "";
+
+        rows.push('<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + info.color + ';margin-right:6px"></span>' + info.short + '</td>'
+            + '<td>' + fmtR(curr.rev) + '</td><td>' + fmtR(fc) + '</td><td>' + curr.vis.toLocaleString("ru-RU") + '</td><td>' + Math.round(ac).toLocaleString("ru-RU") + ' ₽</td>'
+            + '<td class="' + cls + '">' + sign + delta.toFixed(1) + '%</td></tr>');
+    });
+
+    const tAc = tVis > 0 ? tRev / tVis : 0;
+    const tDelta = tPrev > 0 ? ((tRev / tPrev) - 1) * 100 : 0;
+    const tCls = tDelta >= 0 ? "positive" : "negative";
+    const tSign = tDelta >= 0 ? "+" : "";
+
+    rows.push('<tr class="total-row"><td><b>СЕТЬ</b></td><td><b>' + fmtR(tRev) + '</b></td><td><b>' + fmtR(tFc) + '</b></td><td><b>' + tVis.toLocaleString("ru-RU") + '</b></td><td><b>' + Math.round(tAc).toLocaleString("ru-RU") + ' ₽</b></td><td class="' + tCls + '"><b>' + tSign + tDelta.toFixed(1) + '%</b></td></tr>');
+
+    document.getElementById("comparison-table").innerHTML = '<table><thead><tr><th>Филиал</th><th>Выручка</th><th>Прогноз</th><th>Визиты</th><th>Ср.чек</th><th>vs пред</th></tr></thead><tbody>' + rows.join("") + '</tbody></table>';
+}
+
+function selectBranch(cid) {
+    selectedBranch = cid;
+    renderAll();
+}
+
+function renderAll() {
+    renderChips();
+    renderKPI();
+    renderChart();
+    renderDetailTable();
+    renderComparison();
+}
+
+renderAll();
+</script>
+</body>
+</html>
