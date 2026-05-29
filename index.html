@@ -38,8 +38,13 @@ td { text-align: right; padding: 3px 8px; border-bottom: 1px solid #f3f4f6; colo
 td:first-child { text-align: left; font-weight: 500; color: #6b7280; }
 
 /* Филиал: таблица не на всю ширину, колонки влево */
-table.branch { width: auto; }
-table.branch th, table.branch td { padding: 3px 14px 3px 0; }
+table.branch { width: auto; font-size: 12px; }
+table.branch th { font-size: 11px; padding: 4px 12px 4px 0; }
+table.branch td { padding: 4px 12px 4px 0; }
+
+/* Два блока рядом для филиала */
+.branch-split { display: flex; gap: 32px; }
+.branch-split > div { flex: 1; }
 tr:hover { background: #f9fafb; }
 .total-row td { font-weight: 700; border-top: 1px solid #e5e7eb; border-bottom: none; color: #1f2937; }
 tr.weekend td { background: #FEF2F2; }
@@ -58,7 +63,7 @@ tr.weekend td:first-child { font-weight: 600; color: #374151; }
 <div class="header">
     <h1>РНП</h1>
     <span class="tab">Выручка</span>
-    <span class="sync">синхр. 29.05.2026 20:55 ↻</span>
+    <span class="sync">синхр. 29.05.2026 21:00 ↻</span>
 </div>
 
 <div class="chips" id="chips"></div>
@@ -68,7 +73,7 @@ tr.weekend td:first-child { font-weight: 600; color: #374151; }
 <div class="table-scroll" id="detail-table"></div>
 <div class="sep"></div>
 <div id="comparison-table"></div>
-<div class="footer">YClients API · 29.05.2026 20:55 · данные актуальны на момент генерации</div>
+<div class="footer">YClients API · 29.05.2026 21:00 · данные актуальны на момент генерации</div>
 
 <script>
 const BRANCHES = {"164190": {"name": "Britva Люблино", "short": "Br Люб", "color": "#93AAFD"}, "604775": {"name": "Britva ЛП", "short": "Br ЛП", "color": "#B4A0E8"}, "820674": {"name": "Soda Профсоюзная", "short": "S Проф", "color": "#F09898"}, "842128": {"name": "Soda Скобелевская", "short": "S Скоб", "color": "#FDBE87"}, "781002": {"name": "Soda Коммунарка", "short": "S Комм", "color": "#86EFAC"}};
@@ -292,23 +297,44 @@ function renderDetailTable() {
     const weekdays = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
     const isAll = selectedBranch === "all";
 
-    const tblClass = isAll ? "" : ' class="branch"';
-    let html = "<table" + tblClass + "><thead><tr><th>Дата</th>";
-    if (isAll) {
-        Object.values(BRANCHES).forEach(b => { html += "<th>" + b.short + "</th>"; });
-        html += "<th>ИТОГО</th>";
-    } else {
-        html += "<th>Выручка, ₽</th><th>Визиты</th><th>Ср.чек, ₽</th>";
+    if (!isAll) {
+        // Филиал: два блока по 15 дней рядом
+        const bd = DATA[selectedBranch] || {};
+        const left = dates.slice(0, 15);
+        const right = dates.slice(15, 30);
+
+        function buildHalf(days) {
+            let t = { rev: 0, vis: 0 };
+            let rows = '<table class="branch"><thead><tr><th>Дата</th><th>Выручка</th><th>Виз</th><th>Ср.чек</th></tr></thead><tbody>';
+            days.forEach(d => {
+                const dt = new Date(d + "T00:00:00");
+                const wd = weekdays[dt.getDay()];
+                const isWe = dt.getDay() === 0 || dt.getDay() === 6;
+                const rowCls = isWe ? ' class="weekend"' : '';
+                const dv = bd[d] || { revenue: 0, visits: 0 };
+                const ac = dv.visits > 0 ? Math.round(dv.revenue / dv.visits) : 0;
+                t.rev += dv.revenue;
+                t.vis += dv.visits;
+                rows += "<tr" + rowCls + "><td>" + d.slice(8,10) + "." + d.slice(5,7) + " " + wd + "</td><td>" + dv.revenue.toLocaleString("ru-RU") + "</td><td>" + dv.visits + "</td><td>" + ac.toLocaleString("ru-RU") + "</td></tr>";
+            });
+            const tac = t.vis > 0 ? Math.round(t.rev / t.vis) : 0;
+            rows += '<tr class="total-row"><td><b>Итого</b></td><td><b>' + t.rev.toLocaleString("ru-RU") + '</b></td><td><b>' + t.vis + '</b></td><td><b>' + tac.toLocaleString("ru-RU") + '</b></td></tr>';
+            rows += '</tbody></table>';
+            return rows;
+        }
+
+        document.getElementById("detail-table").innerHTML = '<div class="branch-split"><div>' + buildHalf(left) + '</div><div>' + buildHalf(right) + '</div></div>';
+        return;
     }
-    html += "</tr></thead><tbody>";
+
+    // Все: одна таблица на полную ширину
+    let html = "<table><thead><tr><th>Дата</th>";
+    Object.values(BRANCHES).forEach(b => { html += "<th>" + b.short + "</th>"; });
+    html += "<th>ИТОГО</th></tr></thead><tbody>";
 
     let totals = {};
-    if (isAll) {
-        Object.keys(BRANCHES).forEach(cid => { totals[cid] = 0; });
-        totals.total = 0;
-    } else {
-        totals = { rev: 0, vis: 0 };
-    }
+    Object.keys(BRANCHES).forEach(cid => { totals[cid] = 0; });
+    totals.total = 0;
 
     dates.forEach(d => {
         const dt = new Date(d + "T00:00:00");
@@ -317,36 +343,21 @@ function renderDetailTable() {
         const rowCls = isWe ? ' class="weekend"' : '';
 
         html += "<tr" + rowCls + "><td>" + d.slice(8,10) + "." + d.slice(5,7) + " " + wd + "</td>";
-
-        if (isAll) {
-            let rowTotal = 0;
-            Object.keys(BRANCHES).forEach(cid => {
-                const v = (DATA[cid] && DATA[cid][d]) ? DATA[cid][d].revenue : 0;
-                html += "<td>" + v.toLocaleString("ru-RU") + "</td>";
-                totals[cid] += v;
-                rowTotal += v;
-            });
-            html += '<td style="font-weight:600;color:#1f2937">' + rowTotal.toLocaleString("ru-RU") + "</td>";
-            totals.total += rowTotal;
-        } else {
-            const bd = DATA[selectedBranch] || {};
-            const dv = bd[d] || { revenue: 0, visits: 0 };
-            const ac = dv.visits > 0 ? Math.round(dv.revenue / dv.visits) : 0;
-            html += "<td>" + dv.revenue.toLocaleString("ru-RU") + "</td><td>" + dv.visits + "</td><td>" + ac.toLocaleString("ru-RU") + "</td>";
-            totals.rev += dv.revenue;
-            totals.vis += dv.visits;
-        }
+        let rowTotal = 0;
+        Object.keys(BRANCHES).forEach(cid => {
+            const v = (DATA[cid] && DATA[cid][d]) ? DATA[cid][d].revenue : 0;
+            html += "<td>" + v.toLocaleString("ru-RU") + "</td>";
+            totals[cid] += v;
+            rowTotal += v;
+        });
+        html += '<td style="font-weight:600;color:#1f2937">' + rowTotal.toLocaleString("ru-RU") + "</td>";
+        totals.total += rowTotal;
         html += "</tr>";
     });
 
     html += '<tr class="total-row"><td><b>ИТОГО</b></td>';
-    if (isAll) {
-        Object.keys(BRANCHES).forEach(cid => { html += "<td><b>" + totals[cid].toLocaleString("ru-RU") + "</b></td>"; });
-        html += "<td><b>" + totals.total.toLocaleString("ru-RU") + "</b></td>";
-    } else {
-        const tac = totals.vis > 0 ? Math.round(totals.rev / totals.vis) : 0;
-        html += "<td><b>" + totals.rev.toLocaleString("ru-RU") + "</b></td><td><b>" + totals.vis + "</b></td><td><b>" + tac.toLocaleString("ru-RU") + "</b></td>";
-    }
+    Object.keys(BRANCHES).forEach(cid => { html += "<td><b>" + totals[cid].toLocaleString("ru-RU") + "</b></td>"; });
+    html += "<td><b>" + totals.total.toLocaleString("ru-RU") + "</b></td>";
     html += "</tr></tbody></table>";
 
     document.getElementById("detail-table").innerHTML = html;
