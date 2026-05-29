@@ -42,7 +42,8 @@ table.branch { width: auto; }
 table.branch th, table.branch td { padding: 3px 14px 3px 0; }
 tr:hover { background: #f9fafb; }
 .total-row td { font-weight: 700; border-top: 1px solid #e5e7eb; border-bottom: none; color: #1f2937; }
-.weekend { font-weight: 600; color: #374151; }
+tr.weekend td { background: #FEF2F2; }
+tr.weekend td:first-child { font-weight: 600; color: #374151; }
 .positive { color: #16a34a; font-weight: 600; }
 .negative { color: #dc2626; font-weight: 600; }
 
@@ -57,7 +58,7 @@ tr:hover { background: #f9fafb; }
 <div class="header">
     <h1>РНП</h1>
     <span class="tab">Выручка</span>
-    <span class="sync">синхр. 29.05.2026 20:53 ↻</span>
+    <span class="sync">синхр. 29.05.2026 20:55 ↻</span>
 </div>
 
 <div class="chips" id="chips"></div>
@@ -67,7 +68,7 @@ tr:hover { background: #f9fafb; }
 <div class="table-scroll" id="detail-table"></div>
 <div class="sep"></div>
 <div id="comparison-table"></div>
-<div class="footer">YClients API · 29.05.2026 20:53 · данные актуальны на момент генерации</div>
+<div class="footer">YClients API · 29.05.2026 20:55 · данные актуальны на момент генерации</div>
 
 <script>
 const BRANCHES = {"164190": {"name": "Britva Люблино", "short": "Br Люб", "color": "#93AAFD"}, "604775": {"name": "Britva ЛП", "short": "Br ЛП", "color": "#B4A0E8"}, "820674": {"name": "Soda Профсоюзная", "short": "S Проф", "color": "#F09898"}, "842128": {"name": "Soda Скобелевская", "short": "S Скоб", "color": "#FDBE87"}, "781002": {"name": "Soda Коммунарка", "short": "S Комм", "color": "#86EFAC"}};
@@ -313,9 +314,9 @@ function renderDetailTable() {
         const dt = new Date(d + "T00:00:00");
         const wd = weekdays[dt.getDay()];
         const isWe = dt.getDay() === 0 || dt.getDay() === 6;
-        const cls = isWe ? ' class="weekend"' : '';
+        const rowCls = isWe ? ' class="weekend"' : '';
 
-        html += "<tr><td" + cls + ">" + d.slice(8,10) + "." + d.slice(5,7) + " " + wd + "</td>";
+        html += "<tr" + rowCls + "><td>" + d.slice(8,10) + "." + d.slice(5,7) + " " + wd + "</td>";
 
         if (isAll) {
             let rowTotal = 0;
