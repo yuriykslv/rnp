@@ -38,12 +38,12 @@ td { text-align: right; padding: 3px 8px; border-bottom: 1px solid #f3f4f6; colo
 td:first-child { text-align: left; font-weight: 500; color: #6b7280; }
 
 /* Филиал: таблица не на всю ширину, колонки влево */
-table.branch { width: auto; font-size: 12px; }
-table.branch th { font-size: 11px; padding: 4px 12px 4px 0; }
-table.branch td { padding: 4px 12px 4px 0; }
+table.branch { width: auto; font-size: 13px; }
+table.branch th { font-size: 11px; padding: 5px 18px 5px 0; }
+table.branch td { padding: 5px 18px 5px 0; }
 
 /* Два блока рядом для филиала */
-.branch-split { display: flex; gap: 32px; }
+.branch-split { display: flex; gap: 54px; }
 .branch-split > div { flex: 1; }
 tr:hover { background: #f9fafb; }
 .total-row td { font-weight: 700; border-top: 1px solid #e5e7eb; border-bottom: none; color: #1f2937; }
@@ -55,7 +55,8 @@ tr.weekend td:first-child { font-weight: 600; color: #374151; }
 .sep { border-top: 1px solid #f3f4f6; margin: 12px 0; }
 .footer { text-align: center; color: #d1d5db; font-size: 11px; margin-top: 20px; padding-bottom: 10px; }
 
-.table-scroll { max-height: 300px; overflow-y: auto; }
+.table-scroll { }
+.table-scroll.scroll { max-height: 300px; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -63,7 +64,7 @@ tr.weekend td:first-child { font-weight: 600; color: #374151; }
 <div class="header">
     <h1>РНП</h1>
     <span class="tab">Выручка</span>
-    <span class="sync">синхр. 29.05.2026 21:00 ↻</span>
+    <span class="sync">синхр. 29.05.2026 21:06 ↻</span>
 </div>
 
 <div class="chips" id="chips"></div>
@@ -73,7 +74,7 @@ tr.weekend td:first-child { font-weight: 600; color: #374151; }
 <div class="table-scroll" id="detail-table"></div>
 <div class="sep"></div>
 <div id="comparison-table"></div>
-<div class="footer">YClients API · 29.05.2026 21:00 · данные актуальны на момент генерации</div>
+<div class="footer">YClients API · 29.05.2026 21:06 · данные актуальны на момент генерации</div>
 
 <script>
 const BRANCHES = {"164190": {"name": "Britva Люблино", "short": "Br Люб", "color": "#93AAFD"}, "604775": {"name": "Britva ЛП", "short": "Br ЛП", "color": "#B4A0E8"}, "820674": {"name": "Soda Профсоюзная", "short": "S Проф", "color": "#F09898"}, "842128": {"name": "Soda Скобелевская", "short": "S Скоб", "color": "#FDBE87"}, "781002": {"name": "Soda Коммунарка", "short": "S Комм", "color": "#86EFAC"}};
@@ -323,7 +324,9 @@ function renderDetailTable() {
             return rows;
         }
 
-        document.getElementById("detail-table").innerHTML = '<div class="branch-split"><div>' + buildHalf(left) + '</div><div>' + buildHalf(right) + '</div></div>';
+        const el = document.getElementById("detail-table");
+        el.className = "table-scroll";
+        el.innerHTML = '<div class="branch-split"><div>' + buildHalf(left) + '</div><div>' + buildHalf(right) + '</div></div>';
         return;
     }
 
@@ -360,7 +363,9 @@ function renderDetailTable() {
     html += "<td><b>" + totals.total.toLocaleString("ru-RU") + "</b></td>";
     html += "</tr></tbody></table>";
 
-    document.getElementById("detail-table").innerHTML = html;
+    const el = document.getElementById("detail-table");
+    el.className = "table-scroll scroll";
+    el.innerHTML = html;
 }
 
 function renderComparison() {
